@@ -38,34 +38,49 @@ public class GoodsOrderController {
     public static final String SERVICE_VERSION="PaymentSplitterV2_1";
     public static final int SERVICE_ID=0;
     public static String MCH_ADDRESS ="0xEA997d01742B777F083A4529832450155B3623a6".toLowerCase();
-    public static String ACCESS_KEY_ID="ACC_1056989465932726272";
-    public static String REQUEST_KEY="bxu9zz9x3wb0yUg9HHsEAzX8RNNb9VsH";
-    public static String RESPONSE_KEY="8PjPKWDKmPMmWLKE2sX8pS88VD46f16D";
+    public static String ACCESS_KEY_ID="ACC_1057302383735865344";
+    public static String REQUEST_KEY="MnDHAkknqSykfOCCHkud8CkcPS1LMuAA";
+    public static String RESPONSE_KEY="bKANTFRvx9iKxjxA3fSsEKwREF59dSTA";
     public static String RECEIPT_CONTRACT_ADDRESS="0x0e0AB4350306e079399E58a6A98FCeeCB6c9A942".toLowerCase();
 
+    // 这里必须static初始化全局环境
     static {
         PayConstant.initEnv(PayConstant.ENV_TEST);
     }
 
-    @GetMapping(value = "/buy/{goodsId}")
+    @PostMapping(value = "/buy")
     @ResponseBody
-    public GoodsOrder buy(@PathVariable("goodsId") String goodsId) throws IOException, OrderException {
+    public GoodsOrder buy(@RequestParam("goodsId") String goodsId,
+                          @RequestParam("goodsName") String goodsName) throws IOException, OrderException {
 
-        String goodsOrderId = UUID.randomUUID().toString();
+        // 币种标准,erc20,trc20,bep20等
+        final String chainCode="erc20";
+        // 币种代号,usdt,usdc,dai等
+        final String coinCode="usdt";
+        // 商户自身的订单号
+        final String goodsOrderId = UUID.randomUUID().toString();
+        // 商品金额,1usdt
+        final long amount=1_000_000L;
 
         PayOrder order=new PayOrder();
+        // 必须参数
         order.setChain(CHAIN);
         order.setMchAddress(MCH_ADDRESS);
         order.setAccessKeyId(ACCESS_KEY_ID);
         order.setMchOrderNo(goodsOrderId);
-        order.setChainCode("erc20");
-        order.setCoinCode("usdt");
+        order.setChainCode(chainCode);
+        order.setCoinCode(coinCode);
         order.setAccessChannel(PayConstant.ACCESS_CHANNEL_CHAIN);
-        // 10 usdt
-        order.setAmount(BigInteger.valueOf(10_000_000L));
+        order.setAmount(BigInteger.valueOf(amount));
         order.setReceiptAddress(RECEIPT_CONTRACT_ADDRESS);
 
-        // 下单接口
+        // 非必需参数，如果不需要可以不填写
+        order.setSubject("merchant-subject");
+        order.setRemarkInfo("merchant-remark");
+        order.setParam1("my-param1");
+        order.setParam2("my-param2");
+
+        // 调用hashnut的下单接口下单
         OrderOutputParam outputParam=OrderUtil.createPayOrder(order,REQUEST_KEY,SERVICE_TYPE,SERVICE_VERSION,SERVICE_ID);
         System.out.println("get outputParam " + outputParam.toString());
 
@@ -73,10 +88,15 @@ public class GoodsOrderController {
         GoodsOrder goodsOrder = new GoodsOrder();
         goodsOrder.setGoodsOrderId(goodsOrderId);
         goodsOrder.setGoodsId(goodsId);
-        goodsOrder.setGoodsName("water");
-        goodsOrder.setAmount(10_000_000L);
+        goodsOrder.setGoodsName(goodsName);
+        goodsOrder.setChain(CHAIN);
+        goodsOrder.setChainCode(chainCode);
+        goodsOrder.setCoinCode(coinCode);
+        goodsOrder.setAmount(amount);
+        goodsOrder.setAccessSign(outputParam.getAccessSign());
+        goodsOrder.setChannelId("0");
         goodsOrder.setUserId("user_000001");
-        // hashnut的平台订单号
+        // 记录hashnut的平台订单号
         goodsOrder.setPayOrderId(outputParam.getPlatformId());
         goodsOrder.setStatus(Constant.GOODS_ORDER_STATUS_INIT);
 
@@ -85,9 +105,16 @@ public class GoodsOrderController {
         return goodsOrder;
     }
 
+    @PostMapping(value = "/query")
+    @ResponseBody
+    public GoodsOrder query(@RequestParam("goodsOrderId") String goodsOrderId) {
+        return goodsOrderService.queryGoodsOrder(goodsOrderId);
+    }
+
     @PostMapping(value="/payNotify")
     public void payNotify(HttpServletRequest request, HttpServletResponse response) throws Exception {
         log.info("====== 开始处理支付中心通知 ======");
+
         Map<String,Object> paramMap = request2payResponseMap(request, new String[]{
                 "orderId","chain","mchAddress","mchOrderNo","chainCode","coinCode","amount","obtainAmount","payTxId","receiptAddress","state", "confirmCount",
                 "paySuccTime","subject","param1","param2","remark","backType","accessSign","sign"
@@ -98,7 +125,6 @@ public class GoodsOrderController {
         String payTxId = (String) paramMap.get("payTxId");
         String sign=(String)paramMap.get("sign");
         long confirmCount = Long.parseLong((String)paramMap.get("confirmCount"));
-        byte state=Byte.parseByte(stateStr);
 
         // 将可能带有中文参数的参数进行URL Decode
         String subject=URLDecoder.decode(paramMap.get("subject")==null ? "" : paramMap.get("subject").toString(), StandardCharsets.UTF_8);
@@ -111,26 +137,34 @@ public class GoodsOrderController {
         paramMap.put("param2",param2);
         paramMap.put("remark",remark);
         log.info("支付中心通知请求参数,paramMap={}", paramMap);
+
+        String resStr="success";
         // 验签名
         boolean verifyResult=verifyApiKeySign(paramMap,RESPONSE_KEY,sign);
         log.info("支付中心验证签名 {} ",verifyResult);
 
-        switch (stateStr){
-            case "1":
-                goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_PAID);
-                break;
-            case "2":
-                goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_CONFIRMING);
-                break;
-            case "3":
-                goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_SUCCESS);
-                break;
-            case "4":
-                goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_FINISHED);
-                break;
+        if(!verifyResult){
+            resStr="verify sign failed";
+            log.info("响应支付中心通知结果:{},orderId={},mchOrderNo={} payTxId{}  确认次数{}", resStr, orderId, mchOrderNo,payTxId,confirmCount);
+            outResult(response, "verify sign failed");
+        }else{
+            // 切换订单状态
+            switch (stateStr){
+                case "1":
+                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_PAID);
+                    break;
+                case "2":
+                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_CONFIRMING);
+                    break;
+                case "3":
+                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_SUCCESS);
+                    break;
+                case "4":
+                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_FINISHED);
+                    break;
+            }
         }
 
-        String resStr="success";
         log.info("响应支付中心通知结果:{},orderId={},mchOrderNo={} payTxId{}  确认次数{}", resStr, orderId, mchOrderNo,payTxId,confirmCount);
         outResult(response, resStr);
         log.info("====== 支付中心通知处理完成 ======");
@@ -142,9 +176,9 @@ public class GoodsOrderController {
         try {
             pw = response.getWriter();
             pw.print(content);
-            log.info("response xxpay complete.");
+            log.info("response complete.");
         } catch (IOException e) {
-            log.error("response xxpay write exception.",e);
+            log.error("response write exception.",e);
         }
     }
 

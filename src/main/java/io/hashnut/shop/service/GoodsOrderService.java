@@ -26,4 +26,8 @@ public class GoodsOrderService {
 
         return goodsOrderMapper.updateByExampleSelective(goodsOrder, example);
     }
+
+    public GoodsOrder queryGoodsOrder(String goodsOrderId){
+        return goodsOrderMapper.selectByPrimaryKey(goodsOrderId);
+    }
 }

@@ -268,6 +268,45 @@
                     <target>11</target>
                 </configuration>
             </plugin>
+
+<!--            <plugin>-->
+<!--                <groupId>org.mybatis.generator</groupId>-->
+<!--                <artifactId>mybatis-generator-maven-plugin</artifactId>-->
+<!--                <version>${mybatis.generator.version}</version>-->
+<!--                <configuration>-->
+<!--                    &lt;!&ndash;配置文件的位置&ndash;&gt;-->
+<!--                    <configurationFile>src/main/resources/generatorConfig.xml</configurationFile>-->
+<!--                    <verbose>true</verbose>-->
+<!--                    <overwrite>true</overwrite>-->
+<!--                </configuration>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>Generate MyBatis Artifacts</id>-->
+<!--                        <goals>-->
+<!--                            <goal>generate</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--                <dependencies>-->
+<!--                    <dependency>-->
+<!--                        <groupId>mysql</groupId>-->
+<!--                        <artifactId>mysql-connector-java</artifactId>-->
+<!--                        <version>${mysql.connector.java.version}</version>-->
+<!--                    </dependency>-->
+<!--                    &lt;!&ndash;生成代码插件&ndash;&gt;-->
+<!--                    <dependency>-->
+<!--                        <groupId>org.mybatis.generator</groupId>-->
+<!--                        <artifactId>mybatis-generator-core</artifactId>-->
+<!--                        <version>${mybatis.generator.version}</version>-->
+<!--                    </dependency>-->
+<!--                    <dependency>-->
+<!--                        <groupId>io.hashnut</groupId>-->
+<!--                        <artifactId>hashnut-shop</artifactId>-->
+<!--                        <version>1.0.0</version>-->
+<!--                    </dependency>-->
+<!--                </dependencies>-->
+<!--            </plugin>-->
+
         </plugins>
     </build>
 
