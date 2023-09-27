@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -33,34 +34,32 @@ public class GoodsOrderController {
     @Autowired
     private GoodsOrderService goodsOrderService;
 
-    public static final String CHAIN="ETH";
+    public static final String CHAIN="POLYGON";
+    public static final String CHAINCODE="polygon-erc20";
+    public static final String COINCODE="usdt";
     public static final int SERVICE_TYPE=0;
-    public static final String SERVICE_VERSION="PaymentSplitterV2_1";
-    public static final int SERVICE_ID=0;
-    public static String MCH_ADDRESS ="0xEA997d01742B777F083A4529832450155B3623a6".toLowerCase();
-    public static String ACCESS_KEY_ID="ACC_1057302383735865344";
-    public static String REQUEST_KEY="MnDHAkknqSykfOCCHkud8CkcPS1LMuAA";
-    public static String RESPONSE_KEY="bKANTFRvx9iKxjxA3fSsEKwREF59dSTA";
-    public static String RECEIPT_CONTRACT_ADDRESS="0x0e0AB4350306e079399E58a6A98FCeeCB6c9A942".toLowerCase();
-
+    public static final String SERVICE_VERSION="PaymentSplitterV1_1";
+    public static final int SERVICE_ID=5;
+    public static String MCH_ADDRESS ="0xeb4c684bf41f4c2ebc99afe163278f7d73995d19".toLowerCase();
+    public static String ACCESS_KEY_ID="ACC_1074422330228211712";
+    public static String REQUEST_KEY="DzcjTAT1zc5baIT1cIYl8lZsRA1FDRak";
+    public static String RESPONSE_KEY="bHbb2bQTtEqE5sQCAIlZ0TiQ0gXGjEQ2";
+    public static String RECEIPT_CONTRACT_ADDRESS="0x07c7e2cd9b2a2de5695cf8c87de76dee9b044b9e".toLowerCase();
+    
     // 这里必须static初始化全局环境
     static {
-        PayConstant.initEnv(PayConstant.ENV_TEST);
+        PayConstant.initEnv(PayConstant.ENV_PRD);
     }
 
     @PostMapping(value = "/buy")
     @ResponseBody
     public GoodsOrder buy(@RequestParam("goodsId") String goodsId,
-                          @RequestParam("goodsName") String goodsName) throws IOException, OrderException {
-
-        // 币种标准,erc20,trc20,bep20等
-        final String chainCode="erc20";
-        // 币种代号,usdt,usdc,dai等
-        final String coinCode="usdt";
+                          @RequestParam("goodsName") String goodsName,
+                          @RequestParam("amount") String amountString) throws IOException, OrderException {
         // 商户自身的订单号
         final String goodsOrderId = UUID.randomUUID().toString();
-        // 商品金额,1usdt
-        final long amount=1_000_000L;
+        BigDecimal amountD=new BigDecimal(amountString);
+        BigInteger amount=amountD.multiply(BigDecimal.TEN.pow(6)).toBigInteger();
 
         PayOrder order=new PayOrder();
         // 必须参数
@@ -68,10 +67,10 @@ public class GoodsOrderController {
         order.setMchAddress(MCH_ADDRESS);
         order.setAccessKeyId(ACCESS_KEY_ID);
         order.setMchOrderNo(goodsOrderId);
-        order.setChainCode(chainCode);
-        order.setCoinCode(coinCode);
+        order.setChainCode(CHAINCODE);
+        order.setCoinCode(COINCODE);
         order.setAccessChannel(PayConstant.ACCESS_CHANNEL_CHAIN);
-        order.setAmount(BigInteger.valueOf(amount));
+        order.setAmount(amount);
         order.setReceiptAddress(RECEIPT_CONTRACT_ADDRESS);
 
         // 非必需参数，如果不需要可以不填写
@@ -90,9 +89,9 @@ public class GoodsOrderController {
         goodsOrder.setGoodsId(goodsId);
         goodsOrder.setGoodsName(goodsName);
         goodsOrder.setChain(CHAIN);
-        goodsOrder.setChainCode(chainCode);
-        goodsOrder.setCoinCode(coinCode);
-        goodsOrder.setAmount(amount);
+        goodsOrder.setChainCode(CHAINCODE);
+        goodsOrder.setCoinCode(COINCODE);
+        goodsOrder.setAmount(amount.longValue());
         goodsOrder.setAccessSign(outputParam.getAccessSign());
         goodsOrder.setChannelId("0");
         goodsOrder.setUserId("user_000001");
