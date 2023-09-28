@@ -21,9 +21,3 @@ CREATE TABLE `t_goods_order` (
                                  PRIMARY KEY (`GoodsOrderId`),
                                  UNIQUE KEY `IDX_PayOrderId` (`PayOrderId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品订单表';
-
-create user shop@localhost;
-set password for shop@localhost=password('123456');
-flush privileges;
-grant all privileges on shop_db.* to shop@localhost;
-flush privileges;
