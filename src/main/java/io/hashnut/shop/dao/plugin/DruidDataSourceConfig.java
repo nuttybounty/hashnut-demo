@@ -50,19 +50,6 @@ public class DruidDataSourceConfig implements EnvironmentAware {
         druidDataSource.setUrl(propertyResolver.getProperty("url"));
         druidDataSource.setUsername(propertyResolver.getProperty("username"));
         druidDataSource.setPassword(propertyResolver.getProperty("password"));
-        druidDataSource.setInitialSize(Integer.parseInt(propertyResolver.getProperty("initialSize")));
-        druidDataSource.setMinIdle(Integer.parseInt(propertyResolver.getProperty("minIdle")));
-        druidDataSource.setMaxActive(Integer.parseInt(propertyResolver.getProperty("maxActive")));
-        druidDataSource.setMaxWait(Integer.parseInt(propertyResolver.getProperty("maxWait")));
-        druidDataSource.setTimeBetweenEvictionRunsMillis(Long.parseLong(propertyResolver.getProperty("timeBetweenEvictionRunsMillis")));
-        druidDataSource.setMinEvictableIdleTimeMillis(Long.parseLong(propertyResolver.getProperty("minEvictableIdleTimeMillis")));
-        druidDataSource.setValidationQuery(propertyResolver.getProperty("validationQuery"));
-        druidDataSource.setTestWhileIdle(Boolean.parseBoolean(propertyResolver.getProperty("testWhileIdle")));
-        druidDataSource.setTestOnBorrow(Boolean.parseBoolean(propertyResolver.getProperty("testOnBorrow")));
-        druidDataSource.setTestOnReturn(Boolean.parseBoolean(propertyResolver.getProperty("testOnReturn")));
-        druidDataSource.setPoolPreparedStatements(Boolean.parseBoolean(propertyResolver.getProperty("poolPreparedStatements")));
-        druidDataSource.setMaxPoolPreparedStatementPerConnectionSize(Integer.parseInt(propertyResolver.getProperty("maxPoolPreparedStatementPerConnectionSize")));
-        druidDataSource.setFilters(propertyResolver.getProperty("filters"));
         return druidDataSource;
     }
 
