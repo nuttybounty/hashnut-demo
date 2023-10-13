@@ -1,107 +1,139 @@
 package io.hashnut.shop.controller;
 
+import com.alibaba.fastjson.JSONObject;
+import io.hashnut.client.HashNutClient;
+import io.hashnut.client.HashNutClientImpl;
+import io.hashnut.exception.HashNutException;
+import io.hashnut.model.HashNutOrder;
+import io.hashnut.model.request.CreateOrderRequest;
+import io.hashnut.model.request.QueryOrderRequest;
+import io.hashnut.model.response.Response;
+import io.hashnut.service.HashNutService;
+import io.hashnut.service.HashNutServiceImpl;
 import io.hashnut.shop.dao.model.GoodsOrder;
 import io.hashnut.shop.service.GoodsOrderService;
 import io.hashnut.shop.util.Constant;
+import io.hashnut.util.HashNutUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
+import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
-
-import io.hashnut.sdk.exception.OrderException;
-import io.hashnut.sdk.models.*;
-import io.hashnut.sdk.config.PayConstant;
-import io.hashnut.sdk.util.OrderUtil;
-import io.hashnut.sdk.util.PayDigestUtil;
 
 @Slf4j
 @Controller
 @RequestMapping("/shop")
 public class GoodsOrderController {
 
-    @Autowired
-    private GoodsOrderService goodsOrderService;
+    private final HashNutClient hashNutClient;
+    private final HashNutService hashNutService;
+    private final GoodsOrderService goodsOrderService;
 
-    public static final String CHAIN="ETH";
-    public static final int SERVICE_TYPE=0;
-    public static final String SERVICE_VERSION="PaymentSplitterV2_1";
-    public static final int SERVICE_ID=0;
-    public static String MCH_ADDRESS ="0xEA997d01742B777F083A4529832450155B3623a6".toLowerCase();
-    public static String ACCESS_KEY_ID="ACC_1057302383735865344";
-    public static String REQUEST_KEY="MnDHAkknqSykfOCCHkud8CkcPS1LMuAA";
-    public static String RESPONSE_KEY="bKANTFRvx9iKxjxA3fSsEKwREF59dSTA";
-    public static String RECEIPT_CONTRACT_ADDRESS="0x0e0AB4350306e079399E58a6A98FCeeCB6c9A942".toLowerCase();
+    // configure of hashnut,should in database
+    @Value("${hashnut.chain}")
+    private String chain;
+    @Value("${hashnut.chainCode}")
+    private String chainCode;
+    @Value("${hashnut.coinCode}")
+    private String coinCode;
+    @Value("${hashnut.serviceType}")
+    private int serviceType;
+    @Value("${hashnut.serviceVersion}")
+    private String serviceVersion;
+    @Value("${hashnut.serviceId}")
+    private int serviceId;
+    @Value("${hashnut.mchAddress}")
+    private String mchAddress;
+    @Value("${hashnut.accessKeyId}")
+    private String accessKeyId;
+    @Value("${hashnut.requestKey}")
+    private String requestKey;
+    @Value("${hashnut.responseKey}")
+    private String responseKey;
+    @Value("${hashnut.receiptAddress}")
+    private String receiptAddress;
 
-    // 这里必须static初始化全局环境
-    static {
-        PayConstant.initEnv(PayConstant.ENV_TEST);
+    public GoodsOrderController(GoodsOrderService goodsOrderService) {
+        this.hashNutClient = new HashNutClientImpl(requestKey,responseKey,true);
+        this.hashNutService = new HashNutServiceImpl(hashNutClient);
+        this.goodsOrderService = goodsOrderService;
+    }
+
+    // NOTE: read body as a String not json
+    private String readBodyFromRequest(HttpServletRequest request){
+        try{
+            InputStream inputStream = request.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder requestBody = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                requestBody.append(line);
+            }
+            return requestBody.toString();
+        }catch (Exception e){
+            return null;
+        }
+    }
+
+    // verify request sign
+    private boolean verifyNotify(HttpServletRequest request){
+        String body=readBodyFromRequest(request);
+        String uuid=request.getHeader("webhook-uuid");
+        String timeStamp=request.getHeader("webhook-timestamp");
+        String sign=request.getHeader("webhook-sign");
+        String dataToSign=uuid+","+timeStamp+","+body;
+        String sign1= HashNutUtil.hmacSha256Base64(responseKey,dataToSign);
+
+        assert sign1 != null;
+        return sign1.equals(sign);
     }
 
     @PostMapping(value = "/buy")
     @ResponseBody
     public GoodsOrder buy(@RequestParam("goodsId") String goodsId,
-                          @RequestParam("goodsName") String goodsName) throws IOException, OrderException {
-
-        // 币种标准,erc20,trc20,bep20等
-        final String chainCode="erc20";
-        // 币种代号,usdt,usdc,dai等
-        final String coinCode="usdt";
-        // 商户自身的订单号
+                          @RequestParam("goodsName") String goodsName,
+                          @RequestParam("amount") String amountString) throws HashNutException {
+        // generate merchant order no
         final String goodsOrderId = UUID.randomUUID().toString();
-        // 商品金额,1usdt
-        final long amount=1_000_000L;
+        BigDecimal amountD=new BigDecimal(amountString);
+        BigInteger amount=amountD.multiply(BigDecimal.TEN.pow(6)).toBigInteger();
 
-        PayOrder order=new PayOrder();
-        // 必须参数
-        order.setChain(CHAIN);
-        order.setMchAddress(MCH_ADDRESS);
-        order.setAccessKeyId(ACCESS_KEY_ID);
-        order.setMchOrderNo(goodsOrderId);
-        order.setChainCode(chainCode);
-        order.setCoinCode(coinCode);
-        order.setAccessChannel(PayConstant.ACCESS_CHANNEL_CHAIN);
-        order.setAmount(BigInteger.valueOf(amount));
-        order.setReceiptAddress(RECEIPT_CONTRACT_ADDRESS);
+        // create hashnut order
+        Response<HashNutOrder> orderResponse=hashNutService.request(new CreateOrderRequest.Builder()
+                .withChain(chain)
+                .withMchAddress(mchAddress)
+                .withAccessKeyId(accessKeyId)
+                .withMchOrderNo(goodsOrderId)
+                .withChainCode(chainCode)
+                .withCoinCode(coinCode)
+                .withAccessChannel(0)
+                .withAmount(amount.toString())
+                .withReceiptContractAddress(receiptAddress)
+                .build());
+        HashNutOrder hashNutOrder=orderResponse.data;
 
-        // 非必需参数，如果不需要可以不填写
-        order.setSubject("merchant-subject");
-        order.setRemarkInfo("merchant-remark");
-        order.setParam1("my-param1");
-        order.setParam2("my-param2");
-
-        // 调用hashnut的下单接口下单
-        OrderOutputParam outputParam=OrderUtil.createPayOrder(order,REQUEST_KEY,SERVICE_TYPE,SERVICE_VERSION,SERVICE_ID);
-        System.out.println("get outputParam " + outputParam.toString());
-
-        // 记录订单信息到本地
+        // record order info to database
         GoodsOrder goodsOrder = new GoodsOrder();
+        goodsOrder.setPayOrderId(hashNutOrder.getPlatformId());
         goodsOrder.setGoodsOrderId(goodsOrderId);
         goodsOrder.setGoodsId(goodsId);
         goodsOrder.setGoodsName(goodsName);
-        goodsOrder.setChain(CHAIN);
+        goodsOrder.setChain(chain);
         goodsOrder.setChainCode(chainCode);
         goodsOrder.setCoinCode(coinCode);
-        goodsOrder.setAmount(amount);
-        goodsOrder.setAccessSign(outputParam.getAccessSign());
+        goodsOrder.setAmount(amount.longValue());
+        goodsOrder.setAccessSign(hashNutOrder.getAccessSign());
         goodsOrder.setChannelId("0");
         goodsOrder.setUserId("user_000001");
-        // 记录hashnut的平台订单号
-        goodsOrder.setPayOrderId(outputParam.getPlatformId());
         goodsOrder.setStatus(Constant.GOODS_ORDER_STATUS_INIT);
-
         int result = goodsOrderService.addGoodsOrder(goodsOrder);
-        log.info("插入商品订单,返回:{}", result);
+        log.info("insert into order return {}", result);
         return goodsOrder;
     }
 
@@ -113,61 +145,34 @@ public class GoodsOrderController {
 
     @PostMapping(value="/payNotify")
     public void payNotify(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        log.info("====== 开始处理支付中心通知 ======");
+        log.info("hashnut notify process start");
 
-        Map<String,Object> paramMap = request2payResponseMap(request, new String[]{
-                "orderId","chain","mchAddress","mchOrderNo","chainCode","coinCode","amount","obtainAmount","payTxId","receiptAddress","state", "confirmCount",
-                "paySuccTime","subject","param1","param2","remark","backType","accessSign","sign"
-        });
-        String stateStr=(String)paramMap.get("state");
-        String orderId = (String) paramMap.get("orderId");
-        String mchOrderNo = (String) paramMap.get("mchOrderNo");
-        String payTxId = (String) paramMap.get("payTxId");
-        String sign=(String)paramMap.get("sign");
-        long confirmCount = Long.parseLong((String)paramMap.get("confirmCount"));
-
-        // 将可能带有中文参数的参数进行URL Decode
-        String subject=URLDecoder.decode(paramMap.get("subject")==null ? "" : paramMap.get("subject").toString(), StandardCharsets.UTF_8);
-        String param1=URLDecoder.decode(paramMap.get("param1")==null ? "" : paramMap.get("param1").toString(), StandardCharsets.UTF_8);
-        String param2=URLDecoder.decode(paramMap.get("param2")==null ? "" : paramMap.get("param2").toString(), StandardCharsets.UTF_8);
-        String remark=URLDecoder.decode(paramMap.get("remark")==null ? "" : paramMap.get("remark").toString(), StandardCharsets.UTF_8);
-
-        paramMap.put("subject",subject);
-        paramMap.put("param1",param1);
-        paramMap.put("param2",param2);
-        paramMap.put("remark",remark);
-        log.info("支付中心通知请求参数,paramMap={}", paramMap);
-
-        String resStr="success";
-        // 验签名
-        boolean verifyResult=verifyApiKeySign(paramMap,RESPONSE_KEY,sign);
-        log.info("支付中心验证签名 {} ",verifyResult);
-
-        if(!verifyResult){
-            resStr="verify sign failed";
-            log.info("响应支付中心通知结果:{},orderId={},mchOrderNo={} payTxId{}  确认次数{}", resStr, orderId, mchOrderNo,payTxId,confirmCount);
-            outResult(response, "verify sign failed");
-        }else{
-            // 切换订单状态
-            switch (stateStr){
-                case "1":
-                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_PAID);
-                    break;
-                case "2":
-                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_CONFIRMING);
-                    break;
-                case "3":
-                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_SUCCESS);
-                    break;
-                case "4":
-                    goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_FINISHED);
-                    break;
-            }
+        // verify sign, NOTE: must read body as a String not json
+        String body=readBodyFromRequest(request);
+        if(!verifyNotify(request)){
+            log.info("hashnut notify process failed");
+            outResult(response,"failed");
+            return;
         }
 
-        log.info("响应支付中心通知结果:{},orderId={},mchOrderNo={} payTxId{}  确认次数{}", resStr, orderId, mchOrderNo,payTxId,confirmCount);
-        outResult(response, resStr);
-        log.info("====== 支付中心通知处理完成 ======");
+        // query pay order detail info and process pay order
+        JSONObject jsonObject=JSONObject.parseObject(body);
+        String platformId=jsonObject.getString("platformId");
+        String mchOrderNo=jsonObject.getString("mchOrderNo");
+        String accessSign=jsonObject.getString("accessSign");
+        Response<HashNutOrder> orderResponse=hashNutService.request(new QueryOrderRequest.Builder()
+                .withPlatformId(platformId)
+                .withMchOrderNo(mchOrderNo)
+                .withAccessSign(accessSign)
+                .build());
+        HashNutOrder hashNutOrder=orderResponse.data;
+        if(hashNutOrder.getState() < 0){
+            log.info("hashnut pay order failed state {}",hashNutOrder.getState());
+            goodsOrderService.updateOrderState(mchOrderNo, Constant.GOODS_ORDER_STATUS_FAIL);
+        }
+
+        log.info("hashnut notify process success");
+        outResult(response,"success");
     }
 
     void outResult(HttpServletResponse response, String content) {
@@ -181,35 +186,4 @@ public class GoodsOrderController {
             log.error("response write exception.",e);
         }
     }
-
-    public Map<String, Object> request2payResponseMap(HttpServletRequest request, String[] paramArray) {
-        Map<String, Object> responseMap = new HashMap<>();
-        for (int i = 0;i < paramArray.length; i++) {
-            String key = paramArray[i];
-            String v = request.getParameter(key);
-            if (v != null) {
-                responseMap.put(key, v);
-            }
-        }
-        return responseMap;
-    }
-
-    public boolean verifySign(Map<String, Object> map) {
-        String mchAddress = (String) map.get("mchAddress");
-        String chain=(String)map.get("chain");
-        if(!this.MCH_ADDRESS.equals(mchAddress)) return false;
-        if(!this.CHAIN.equals(chain)) return false;
-        String localSign = PayDigestUtil.getHmacSign256(RESPONSE_KEY,map, "sign");
-        String sign = (String) map.get("sign");
-        return localSign.equalsIgnoreCase(sign);
-    }
-
-    public boolean verifyApiKeySign(Map<String, Object> map,String resKey,String sign){
-        String mchAddress = (String) map.get("mchAddress");
-        String chain=(String)map.get("chain");
-        if(!this.MCH_ADDRESS.equals(mchAddress)) return false;
-        if(!this.CHAIN.equals(chain)) return false;
-        return PayDigestUtil.verifyHmacSign256(resKey,sign,map,"sign");
-    }
-
 }

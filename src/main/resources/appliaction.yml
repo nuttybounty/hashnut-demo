@@ -1,0 +1,25 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/shop_db?useUnicode=true&characterEncoding=utf-8&autoReconnect=true
+    username: root
+    password: root
+
+
+hashnut:
+  chain: "ETH"
+  chainCode: "erc20"
+  coinCode: "usdt"
+  serviceType: 0
+  serviceVersion: "PaymentSplitterV1_1"
+  serviceId:  1
+  mchAddress: "0xe1fd94f8874d698567e03f671a8c62e4e2e4be90"
+  accessKeyId: "ACC_1156690317534035968"
+  requestKey:  "JgsnNZqgtZttxHwzbLe4ZxstQwqLXHH4"
+  responseKey: "CetlG87d3CPPTCQ48PgGoPCoR3tCx4R4"
+  receiptAddress:  "0x46ec57d48154c9de11ff430d5d1c6037a85aba96"
+
