@@ -6,7 +6,7 @@ import org.apache.ibatis.plugin.Interceptor;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.bind.RelaxedPropertyResolver;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.ApplicationContextException;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.context.annotation.Bean;
@@ -28,11 +28,11 @@ import java.util.Properties;
 public class DruidDataSourceConfig implements EnvironmentAware {
 
     private Environment environment;
-    private RelaxedPropertyResolver propertyResolver;
+    private Properties propertyResolver;
 
     public void setEnvironment(Environment environment) {
         this.environment = environment;
-        this.propertyResolver = new RelaxedPropertyResolver(environment, "spring.datasource.");
+        this.propertyResolver= Binder.get(environment).bind("spring.datasource",Properties.class).orElse(null);
     }
 
     //注册dataSource

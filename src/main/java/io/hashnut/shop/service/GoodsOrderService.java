@@ -10,19 +10,22 @@ import org.springframework.stereotype.Component;
 @Component
 public class GoodsOrderService {
 
-    @Autowired
-    private GoodsOrderMapper goodsOrderMapper;
+    private final GoodsOrderMapper goodsOrderMapper;
+
+    public GoodsOrderService(GoodsOrderMapper goodsOrderMapper) {
+        this.goodsOrderMapper = goodsOrderMapper;
+    }
 
     public int addGoodsOrder(GoodsOrder goodsOrder) {
         return goodsOrderMapper.insertSelective(goodsOrder);
     }
 
-    public int updateOrderState(String goodsOrderId,byte state){
+    public int updateOrderState(String merchantOrderId,Integer state){
         GoodsOrder goodsOrder = new GoodsOrder();
         goodsOrder.setStatus(state);
         GoodsOrderExample example = new GoodsOrderExample();
         GoodsOrderExample.Criteria criteria = example.createCriteria();
-        criteria.andGoodsOrderIdEqualTo(goodsOrderId);
+        criteria.andMerchantOrderIdEqualTo(merchantOrderId);
 
         return goodsOrderMapper.updateByExampleSelective(goodsOrder, example);
     }
@@ -30,4 +33,5 @@ public class GoodsOrderService {
     public GoodsOrder queryGoodsOrder(String goodsOrderId){
         return goodsOrderMapper.selectByPrimaryKey(goodsOrderId);
     }
+
 }

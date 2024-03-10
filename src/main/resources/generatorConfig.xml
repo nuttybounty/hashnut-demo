@@ -51,7 +51,9 @@
         <javaClientGenerator targetPackage="io.hashnut.shop.dao.mapper" targetProject="src/main/java" type="XMLMAPPER" />
 
         <!-- 需要映射的表 -->
-<!--        <table tableName="t_goods_order" domainObjectName="GoodsOrder"><property name="useActualColumnNames" value="true" /></table>-->
+        <table tableName="t_goods_order" domainObjectName="GoodsOrder">
+            <property name="useActualColumnNames" value="true" />
+        </table>
 
     </context>
 </generatorConfiguration>
