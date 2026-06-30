@@ -1,0 +1,12 @@
+server:
+  port: 1800
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/demo_shop
+    username: postgres
+    password: postgres
+
+hashnut:
+  test-mode: false
+  base-url: ""
