@@ -1,13 +1,13 @@
 # HashNut 示范商城 (Java)
 
-演示如何使用 [payment-sdk-java](../payment-sdk-java) 对接 HashNut 支付 API（V4 版本）的示范商户应用。支持多链支付（ERC20 / TRC20）。
+演示如何使用 [hashnut-sdk](https://github.com/nuttybounty/hashnut-sdk) 对接 HashNut 支付 API（V4 版本）的示范商户应用。支持多链支付（ERC20 / TRC20）。
 
 ## 技术栈
 
 - **后端**: Java 11 + Spring Boot 2.7
 - **数据库**: PostgreSQL
-- **支付**: HashNut Java SDK (V4)
-- **前端**: 共用 React + TypeScript 工程（见 [demo-web](../demo-web)）
+- **支付**: [HashNut Java SDK](https://github.com/nuttybounty/hashnut-sdk) (V4, 通过 JitPack)
+- **前端**: [hashnut-demo-web](https://github.com/nuttybounty/hashnut-demo-web) (React + TypeScript)
 
 ## 环境要求
 
@@ -20,26 +20,24 @@
 
 ## 快速开始
 
-### 1. 安装 SDK
+### 1. 克隆项目
 
 ```bash
-cd ../payment-sdk-java
-mvn install -DskipTests
+git clone https://github.com/nuttybounty/hashnut-demo.git
+cd hashnut-demo
 ```
+
+> SDK 依赖通过 [JitPack](https://jitpack.io/#nuttybounty/hashnut-sdk) 自动下载，无需手动安装。
 
 ### 2. 创建数据库
 
 ```bash
 psql -U postgres -c "CREATE DATABASE demo_shop;"
-psql -U postgres -d demo_shop -f migrate.sql
 ```
 
-### 3. 配置
+### 3. 配置种子数据
 
-运行 `migrate.sql` 前先编辑种子数据：
-
-- **t_coin_info**: 支持的链+币种组合
-- **t_hashnut_api_key**: 每条链的 splitter 地址 + API 密钥
+编辑 `migrate.sql`，填入你的 API 密钥：
 
 ```sql
 INSERT INTO t_hashnut_api_key (chain_code, splitter, access_key_id, secret_key) VALUES
@@ -47,7 +45,15 @@ INSERT INTO t_hashnut_api_key (chain_code, splitter, access_key_id, secret_key) 
     ('trc20', 'T...你的Tron分账合约地址',    '你的access-key-id', '你的secret-key');
 ```
 
-编辑 `src/main/resources/application.yml`：
+然后执行：
+
+```bash
+psql -U postgres -d demo_shop -f migrate.sql
+```
+
+### 4. 配置应用
+
+按需编辑 `src/main/resources/application.yml`（数据库连接等）：
 
 ```yaml
 server:
@@ -64,7 +70,7 @@ hashnut:
   base-url: ""       # 留空使用默认地址
 ```
 
-### 4. 启动后端
+### 5. 启动后端
 
 ```bash
 mvn spring-boot:run
@@ -72,10 +78,11 @@ mvn spring-boot:run
 
 服务启动在 `http://localhost:1800`。
 
-### 5. 启动前端
+### 6. 启动前端
 
 ```bash
-cd ../demo-web
+git clone https://github.com/nuttybounty/hashnut-demo-web.git
+cd hashnut-demo-web
 npm install
 npm run dev
 ```
@@ -112,13 +119,13 @@ ngrok http 1800
 
 ```
 浏览器 (localhost:5173)
-  → 点击 "Pay with Crypto"
-  → POST /api/orders（Vite 代理到 localhost:1800）
-  → 跳转到 HashNut 支付页面 (defi.hashnut.io/pay)
-  → 用户链上支付
-  → HashNut 后端发送通知到 ngrok URL → localhost:1800/api/notify
-  → HashNut 前端跳转到 http://localhost:5173/payment-result?state=4&...
-  → 前端显示支付成功
+  -> 点击 "Pay with Crypto"
+  -> POST /api/orders（Vite 代理到 localhost:1800）
+  -> 跳转到 HashNut 支付页面 (defi.hashnut.io/pay)
+  -> 用户链上支付
+  -> HashNut 后端发送通知到 ngrok URL -> localhost:1800/api/notify
+  -> HashNut 前端跳转到 http://localhost:5173/payment-result?state=4&...
+  -> 前端显示支付成功
 ```
 
 ## 接口说明
@@ -132,14 +139,6 @@ ngrok http 1800
 | POST | `/api/orders/:id/confirm` | 提交支付交易哈希 `{payTxId}` |
 | POST | `/api/notify` | HashNut 支付结果回调 |
 
-### 创建订单
-
-```bash
-curl -X POST http://localhost:1800/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"productId": 1, "chainCode": "erc20", "coinCode": "usdt"}'
-```
-
 ## 数据库表结构
 
 | 表 | 说明 |
@@ -148,28 +147,6 @@ curl -X POST http://localhost:1800/api/orders \
 | `t_hashnut_api_key` | 每条链的 splitter 地址 + API 密钥 |
 | `products` | 商品（只有价格，不绑定链/币种） |
 | `orders` | 订单（记录用户选择的链+币种） |
-
-## 项目结构
-
-```
-demo-java/
-├── pom.xml
-├── migrate.sql                                          # 建表 SQL + 种子数据
-└── src/main/
-    ├── resources/application.yml                        # 运行时配置
-    └── java/io/hashnut/demo/
-        ├── DemoApplication.java                         # Spring Boot 入口
-        ├── config/
-        │   ├── HashNutConfig.java                       # SDK 客户端工厂（按 secretKey 缓存）+ payUrl 构建
-        │   └── CorsConfig.java                          # CORS 支持
-        ├── model/
-        │   ├── Product.java
-        │   └── Order.java
-        └── controller/
-            ├── ProductController.java                   # GET /api/products, GET /api/chains
-            ├── OrderController.java                     # POST /api/orders, GET /api/orders/{id}, POST /api/orders/{id}/confirm
-            └── NotifyController.java                    # POST /api/notify
-```
 
 ## 许可证
 

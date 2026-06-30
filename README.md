@@ -1,13 +1,13 @@
 # HashNut Demo Shop (Java)
 
-A demo merchant application demonstrating how to integrate with HashNut Payment API (V4) using the [payment-sdk-java](../payment-sdk-java). Supports multi-chain payment (ERC20 / TRC20).
+A demo merchant application demonstrating how to integrate with HashNut Payment API (V4) using the [hashnut-sdk](https://github.com/nuttybounty/hashnut-sdk). Supports multi-chain payment (ERC20 / TRC20).
 
 ## Tech Stack
 
 - **Backend**: Java 11 + Spring Boot 2.7
 - **Database**: PostgreSQL
-- **Payment**: HashNut Java SDK (V4)
-- **Frontend**: Shared React + TypeScript project (see [demo-web](../demo-web))
+- **Payment**: [HashNut Java SDK](https://github.com/nuttybounty/hashnut-sdk) (V4, via JitPack)
+- **Frontend**: [hashnut-demo-web](https://github.com/nuttybounty/hashnut-demo-web) (React + TypeScript)
 
 ## Prerequisites
 
@@ -20,26 +20,24 @@ A demo merchant application demonstrating how to integrate with HashNut Payment 
 
 ## Quick Start
 
-### 1. Install SDK
+### 1. Clone
 
 ```bash
-cd ../payment-sdk-java
-mvn install -DskipTests
+git clone https://github.com/nuttybounty/hashnut-demo.git
+cd hashnut-demo
 ```
+
+> SDK dependency is resolved automatically via [JitPack](https://jitpack.io/#nuttybounty/hashnut-sdk) — no manual install needed.
 
 ### 2. Create Database
 
 ```bash
 psql -U postgres -c "CREATE DATABASE demo_shop;"
-psql -U postgres -d demo_shop -f migrate.sql
 ```
 
-### 3. Configure
+### 3. Configure Seed Data
 
-Edit `migrate.sql` seed data before running:
-
-- **t_coin_info**: Supported chain + coin combinations
-- **t_hashnut_api_key**: Your splitter address + API credentials per chain
+Edit `migrate.sql` to fill in your API credentials:
 
 ```sql
 INSERT INTO t_hashnut_api_key (chain_code, splitter, access_key_id, secret_key) VALUES
@@ -47,7 +45,15 @@ INSERT INTO t_hashnut_api_key (chain_code, splitter, access_key_id, secret_key) 
     ('trc20', 'T...your-tron-splitter',    'your-access-key-id', 'your-secret-key');
 ```
 
-Edit `src/main/resources/application.yml`:
+Then run:
+
+```bash
+psql -U postgres -d demo_shop -f migrate.sql
+```
+
+### 4. Configure Application
+
+Edit `src/main/resources/application.yml` if needed (database connection, etc.):
 
 ```yaml
 server:
@@ -64,7 +70,7 @@ hashnut:
   base-url: ""       # Leave empty for default
 ```
 
-### 4. Run Backend
+### 5. Run Backend
 
 ```bash
 mvn spring-boot:run
@@ -72,10 +78,11 @@ mvn spring-boot:run
 
 The server starts on `http://localhost:1800`.
 
-### 5. Run Frontend
+### 6. Run Frontend
 
 ```bash
-cd ../demo-web
+git clone https://github.com/nuttybounty/hashnut-demo-web.git
+cd hashnut-demo-web
 npm install
 npm run dev
 ```
@@ -112,13 +119,13 @@ In your HashNut merchant dashboard, set:
 
 ```
 Browser (localhost:5173)
-  → Click "Pay with Crypto"
-  → POST /api/orders (proxied to localhost:1800)
-  → Redirect to HashNut payment page (defi.hashnut.io/pay)
-  → User pays on-chain
-  → HashNut backend sends notification to ngrok URL → localhost:1800/api/notify
-  → HashNut frontend redirects to http://localhost:5173/payment-result?state=4&...
-  → Frontend shows payment success
+  -> Click "Pay with Crypto"
+  -> POST /api/orders (proxied to localhost:1800)
+  -> Redirect to HashNut payment page (defi.hashnut.io/pay)
+  -> User pays on-chain
+  -> HashNut backend sends notification to ngrok URL -> localhost:1800/api/notify
+  -> HashNut frontend redirects to http://localhost:5173/payment-result?state=4&...
+  -> Frontend shows payment success
 ```
 
 ## API Endpoints
@@ -132,14 +139,6 @@ Browser (localhost:5173)
 | POST | `/api/orders/:id/confirm` | Submit payment tx hash `{payTxId}` |
 | POST | `/api/notify` | HashNut payment result webhook |
 
-### Create Order
-
-```bash
-curl -X POST http://localhost:1800/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"productId": 1, "chainCode": "erc20", "coinCode": "usdt"}'
-```
-
 ## Database Schema
 
 | Table | Description |
@@ -152,7 +151,7 @@ curl -X POST http://localhost:1800/api/orders \
 ## Project Structure
 
 ```
-demo-java/
+hashnut-demo/
 ├── pom.xml
 ├── migrate.sql                                          # Database schema + seed data
 └── src/main/
