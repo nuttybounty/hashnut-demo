@@ -8,5 +8,5 @@ spring:
     password: postgres
 
 hashnut:
-  test-mode: true
+  test-mode: false
   base-url: ""
