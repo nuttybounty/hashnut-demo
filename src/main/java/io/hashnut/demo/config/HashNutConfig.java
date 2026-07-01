@@ -34,7 +34,7 @@ public class HashNutConfig {
     /**
      * 构建 HashNut 支付页面 URL（与 Go SDK buildPayURL 逻辑一致）
      */
-    public String buildPayUrl(String payOrderId, String merchantOrderId, String accessSign, String chainCode) {
+    public String buildPayUrl(String payOrderId, String merchantOrderId, String accessSign, String blockChain) {
         String apiBase;
         if (baseUrl != null && !baseUrl.isEmpty()) {
             apiBase = baseUrl;
@@ -49,7 +49,7 @@ public class HashNutConfig {
                 + "?payOrderId=" + payOrderId
                 + "&merchantOrderId=" + merchantOrderId
                 + "&accessSign=" + accessSign
-                + "&chainCode=" + chainCode
+                + "&blockChain=" + blockChain
                 + "&payApiVersion=4";
     }
 

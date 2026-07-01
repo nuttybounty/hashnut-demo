@@ -24,8 +24,8 @@ public class CreateOrderApiTest {
     static final String ACCESS_KEY_ID    = "<your-access-key-id>";
     static final String SECRET_KEY       = "<your-secret-key>";
     static final String SPLITTER_ADDRESS = "<your-splitter-address>";
-    static final String CHAIN_CODE       = "trc20";
-    static final String COIN_CODE        = "usdt";
+    static final String BLOCK_CHAIN      = "TRON";
+    static final String TOKEN_SYMBOL     = "usdt";
     static final String AMOUNT           = "0.01";
     // ======================================
 
@@ -39,8 +39,8 @@ public class CreateOrderApiTest {
         CreateOrderRequest request = new CreateOrderRequest.Builder()
                 .withAccessKeyId(ACCESS_KEY_ID)
                 .withMerchantOrderId(merchantOrderId)
-                .withChainCode(CHAIN_CODE)
-                .withCoinCode(COIN_CODE)
+                .withBlockChain(BLOCK_CHAIN)
+                .withTokenSymbol(TOKEN_SYMBOL)
                 .withAmount(AMOUNT)
                 .withSplitterAddress(SPLITTER_ADDRESS)
                 .withSubject("Test Order - API Doc")
@@ -73,8 +73,8 @@ public class CreateOrderApiTest {
             System.out.println("accessSign:     " + response.getData().getAccessSign());
             System.out.println("state:          " + response.getData().getState());
             System.out.println("amount:         " + response.getData().getAmount());
-            System.out.println("chainCode:      " + response.getData().getChainCode());
-            System.out.println("coinCode:       " + response.getData().getCoinCode());
+            System.out.println("blockChain:     " + response.getData().getBlockChain());
+            System.out.println("tokenSymbol:    " + response.getData().getTokenSymbol());
         } catch (Exception e) {
             // loggingClient 已经打印了原始 response
             System.out.println();

@@ -46,8 +46,8 @@ public class QueryOrderApiTest {
             System.out.println("amount:          " + response.getData().getAmount());
             System.out.println("receiptAddress:  " + response.getData().getReceiptAddress());
             System.out.println("payTxId:         " + response.getData().getPayTxId());
-            System.out.println("chainCode:       " + response.getData().getChainCode());
-            System.out.println("coinCode:        " + response.getData().getCoinCode());
+            System.out.println("blockChain:      " + response.getData().getBlockChain());
+            System.out.println("tokenSymbol:     " + response.getData().getTokenSymbol());
         } catch (Exception e) {
             System.out.println();
             System.out.println("========== ERROR ==========");

@@ -45,14 +45,14 @@ public class OrderController {
     @PostMapping("/orders")
     public Map<String, Object> createOrder(@RequestBody Map<String, Object> body) {
         Integer productId = (Integer) body.get("productId");
-        String chainCode = (String) body.get("chainCode");
-        String coinCode = (String) body.get("coinCode");
+        String blockChain = (String) body.get("blockChain");
+        String tokenSymbol = (String) body.get("tokenSymbol");
 
         if (productId == null) {
             return Collections.singletonMap("error", "productId is required");
         }
-        if (chainCode == null || chainCode.isEmpty() || coinCode == null || coinCode.isEmpty()) {
-            return Collections.singletonMap("error", "chainCode and coinCode are required");
+        if (blockChain == null || blockChain.isEmpty() || tokenSymbol == null || tokenSymbol.isEmpty()) {
+            return Collections.singletonMap("error", "blockChain and tokenSymbol are required");
         }
 
         // 查商品
@@ -77,10 +77,10 @@ public class OrderController {
         Map<String, Object> apiKeyRow;
         try {
             apiKeyRow = jdbc.queryForMap(
-                    "SELECT splitter, access_key_id, secret_key FROM t_hashnut_api_key WHERE chain_code = ?",
-                    chainCode);
+                    "SELECT splitter, access_key_id, secret_key FROM t_hashnut_api_key WHERE block_chain = ?",
+                    blockChain);
         } catch (EmptyResultDataAccessException e) {
-            return Collections.singletonMap("error", "unsupported chain: " + chainCode);
+            return Collections.singletonMap("error", "unsupported chain: " + blockChain);
         }
 
         String splitter = (String) apiKeyRow.get("splitter");
@@ -97,8 +97,8 @@ public class OrderController {
             payResp = service.createOrder(new CreateOrderRequest.Builder()
                     .withAccessKeyId(accessKeyId)
                     .withMerchantOrderId(orderNo)
-                    .withChainCode(chainCode)
-                    .withCoinCode(coinCode)
+                    .withBlockChain(blockChain)
+                    .withTokenSymbol(tokenSymbol)
                     .withAmount(product.getPrice())
                     .withSplitterAddress(splitter)
                     .withSubject(product.getName())
@@ -115,15 +115,15 @@ public class OrderController {
         order.setOrderNo(orderNo);
         order.setProductId(product.getId());
         order.setAmount(product.getPrice());
-        order.setChainCode(chainCode);
-        order.setCoinCode(coinCode);
+        order.setBlockChain(blockChain);
+        order.setTokenSymbol(tokenSymbol);
         order.setPayOrderId(payOrder.getPayOrderId());
         order.setAccessSign(payOrder.getAccessSign());
         order.setReceiptAddress(payOrder.getReceiptAddress());
         // 后端可能不返回 payUrl，按 Go SDK 逻辑自动构建
         String payUrl = payOrder.getPayUrl();
         if (payUrl == null || payUrl.isEmpty()) {
-            payUrl = hashNutConfig.buildPayUrl(payOrder.getPayOrderId(), orderNo, payOrder.getAccessSign(), chainCode);
+            payUrl = hashNutConfig.buildPayUrl(payOrder.getPayOrderId(), orderNo, payOrder.getAccessSign(), blockChain);
         }
         order.setPayUrl(payUrl);
         order.setStatus("paying");
@@ -132,14 +132,14 @@ public class OrderController {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(
-                    "INSERT INTO orders (order_no, product_id, amount, chain_code, coin_code, pay_order_id, access_sign, receipt_address, pay_url, status, created_at, updated_at) " +
+                    "INSERT INTO orders (order_no, product_id, amount, block_chain, token_symbol, pay_order_id, access_sign, receipt_address, pay_url, status, created_at, updated_at) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, created_at, updated_at",
                     Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, order.getOrderNo());
             ps.setInt(2, order.getProductId());
             ps.setBigDecimal(3, new java.math.BigDecimal(order.getAmount()));
-            ps.setString(4, order.getChainCode());
-            ps.setString(5, order.getCoinCode());
+            ps.setString(4, order.getBlockChain());
+            ps.setString(5, order.getTokenSymbol());
             ps.setString(6, order.getPayOrderId());
             ps.setString(7, order.getAccessSign());
             ps.setString(8, order.getReceiptAddress());
@@ -172,7 +172,7 @@ public class OrderController {
         // If still paying, query HashNut for latest status
         if ("paying".equals(order.getStatus()) && order.getPayOrderId() != null && !order.getPayOrderId().isEmpty()) {
             // 查订单对应链的 secretKey
-            HashNutService service = getServiceForChain(order.getChainCode());
+            HashNutService service = getServiceForChain(order.getBlockChain());
             if (service != null) {
                 try {
                     QueryOrderResponse queryResp = service.queryOrder(new QueryOrderRequest.Builder()
@@ -210,9 +210,9 @@ public class OrderController {
             return Collections.singletonMap("error", "order not found");
         }
 
-        HashNutService service = getServiceForChain(order.getChainCode());
+        HashNutService service = getServiceForChain(order.getBlockChain());
         if (service == null) {
-            return Collections.singletonMap("error", "chain config not found: " + order.getChainCode());
+            return Collections.singletonMap("error", "chain config not found: " + order.getBlockChain());
         }
 
         try {
@@ -221,7 +221,6 @@ public class OrderController {
                     .withMerchantOrderId(order.getOrderNo())
                     .withAccessSign(order.getAccessSign())
                     .withPayTxId(payTxId)
-                    .withChainCode(order.getChainCode())
                     .build());
         } catch (HashNutException e) {
             return Collections.singletonMap("error", "confirm failed: " + e.getMessage());
@@ -231,10 +230,10 @@ public class OrderController {
         return Collections.singletonMap("msg", "ok");
     }
 
-    private HashNutService getServiceForChain(String chainCode) {
+    private HashNutService getServiceForChain(String blockChain) {
         try {
             Map<String, Object> row = jdbc.queryForMap(
-                    "SELECT secret_key FROM t_hashnut_api_key WHERE chain_code = ?", chainCode);
+                    "SELECT secret_key FROM t_hashnut_api_key WHERE block_chain = ?", blockChain);
             return hashNutConfig.getService((String) row.get("secret_key"));
         } catch (EmptyResultDataAccessException e) {
             return null;
@@ -243,7 +242,7 @@ public class OrderController {
 
     private Order findOrderByOrderNo(String orderNo) {
         return jdbc.queryForObject(
-                "SELECT o.id, o.order_no, o.product_id, o.amount, o.chain_code, o.coin_code, " +
+                "SELECT o.id, o.order_no, o.product_id, o.amount, o.block_chain, o.token_symbol, " +
                 "o.pay_order_id, o.access_sign, o.receipt_address, o.pay_url, o.pay_tx_id, " +
                 "o.status, o.created_at, o.updated_at, p.name AS product_name " +
                 "FROM orders o JOIN products p ON o.product_id = p.id WHERE o.order_no = ?",
@@ -253,8 +252,8 @@ public class OrderController {
                     o.setOrderNo(rs.getString("order_no"));
                     o.setProductId(rs.getInt("product_id"));
                     o.setAmount(rs.getBigDecimal("amount").stripTrailingZeros().toPlainString());
-                    o.setChainCode(rs.getString("chain_code"));
-                    o.setCoinCode(rs.getString("coin_code"));
+                    o.setBlockChain(rs.getString("block_chain"));
+                    o.setTokenSymbol(rs.getString("token_symbol"));
                     o.setPayOrderId(rs.getString("pay_order_id"));
                     o.setAccessSign(rs.getString("access_sign"));
                     o.setReceiptAddress(rs.getString("receipt_address"));
@@ -278,11 +277,13 @@ public class OrderController {
         switch (state) {
             case OrderState.INIT:
             case OrderState.PAID:
-            case OrderState.CONFIRMING:
                 return "paying";
+            case OrderState.CONFIRMING:
+                return "confirming";
             case OrderState.SUCCESS:
+                return "fund received";
             case OrderState.FINISH:
-                return "paid";
+                return "finish";
             case OrderState.FAILED:
                 return "failed";
             case OrderState.EXPIRE:

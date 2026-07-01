@@ -43,10 +43,10 @@ public class ProductController {
     @GetMapping("/chains")
     public Map<String, Object> listSupportedChains() {
         List<Map<String, Object>> result = jdbc.queryForList(
-                "SELECT c.chain_code, c.coin_code, c.chain_label, c.coin_label, c.contract_address, c.decimals " +
+                "SELECT c.block_chain, c.token_symbol, c.chain_label, c.coin_label, c.contract_address, c.decimals " +
                 "FROM t_coin_info c " +
-                "INNER JOIN t_hashnut_api_key k ON c.chain_code = k.chain_code " +
-                "ORDER BY c.chain_code, c.coin_code");
+                "INNER JOIN t_hashnut_api_key k ON c.block_chain = k.block_chain " +
+                "ORDER BY c.block_chain, c.token_symbol");
         return Collections.singletonMap("data", result);
     }
 }

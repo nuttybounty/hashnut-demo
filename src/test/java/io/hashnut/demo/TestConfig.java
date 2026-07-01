@@ -19,8 +19,8 @@ public class TestConfig {
     public static final String ACCESS_KEY_ID    = "<your-access-key-id>";
     public static final String SECRET_KEY       = "<your-secret-key>";
     public static final String SPLITTER_ADDRESS = "<your-splitter-address>";
-    public static final String CHAIN_CODE       = "trc20";
-    public static final String COIN_CODE        = "usdt";
+    public static final String BLOCK_CHAIN      = "TRON";
+    public static final String TOKEN_SYMBOL     = "usdt";
     public static final String AMOUNT           = "0.01";
     // ======================================
 

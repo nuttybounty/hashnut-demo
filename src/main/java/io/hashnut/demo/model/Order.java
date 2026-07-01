@@ -7,8 +7,8 @@ public class Order {
     private String orderNo;
     private int productId;
     private String amount;
-    private String chainCode;
-    private String coinCode;
+    private String blockChain;
+    private String tokenSymbol;
     private String payOrderId;
     private String accessSign;
     private String receiptAddress;
@@ -31,11 +31,11 @@ public class Order {
     public String getAmount() { return amount; }
     public void setAmount(String amount) { this.amount = amount; }
 
-    public String getChainCode() { return chainCode; }
-    public void setChainCode(String chainCode) { this.chainCode = chainCode; }
+    public String getBlockChain() { return blockChain; }
+    public void setBlockChain(String blockChain) { this.blockChain = blockChain; }
 
-    public String getCoinCode() { return coinCode; }
-    public void setCoinCode(String coinCode) { this.coinCode = coinCode; }
+    public String getTokenSymbol() { return tokenSymbol; }
+    public void setTokenSymbol(String tokenSymbol) { this.tokenSymbol = tokenSymbol; }
 
     public String getPayOrderId() { return payOrderId; }
     public void setPayOrderId(String payOrderId) { this.payOrderId = payOrderId; }
